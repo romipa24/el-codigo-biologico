@@ -293,6 +293,12 @@ mark{background:linear-gradient(transparent 60%,rgba(85,224,200,.45) 60%);color:
 .field input:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 5px rgba(31,111,209,.12)}
 .field input:focus+label,.field input:not(:placeholder-shown)+label,.field textarea:focus+label,.field textarea:not(:placeholder-shown)+label{top:8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--blue)}
 .cform .btn{grid-column:1/-1;justify-self:start;margin-top:6px}
+.cform .btn:disabled{opacity:.6;cursor:wait}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.form-msg{grid-column:1/-1;font-weight:600;font-size:15px;min-height:1px}
+.form-msg:empty{display:none}
+.form-msg.ok{color:#137a63}
+.form-msg.err{color:#b4483b}
 @media (max-width:900px){.contact .card{grid-template-columns:1fr}.contact .side,.cform{padding:44px 26px}.cform{grid-template-columns:1fr}}
 
 /* ---------- footer ---------- */

@@ -20,7 +20,7 @@
     'reflejos-plazos': { name: 'REFLEJOS PRIMITIVOS DEL LENGUAJE CORPORAL – PLAZOS', price: 1600, img: 'curso-reflejos.jpg' }
   };
   const imgSrc = f => (window.ECB_IMG && window.ECB_IMG[f]) || ('img/' + f);
-  const eur = n => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const eur = n => { const [i, d] = n.toFixed(2).split('.'); return i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d + ' €'; };
 
   /* ---------- nav, progreso, parallax ---------- */
   const nav = $('#nav'), prog = $('#progress');
@@ -98,8 +98,49 @@
     go(0);
   });
 
-  /* ---------- formularios (el envío se conecta en el servidor) ---------- */
-  $$('.cform').forEach(f => f.addEventListener('submit', e => e.preventDefault()));
+  /* ---------- formularios: se envían a contacto.php ---------- */
+  const NO_SERVER = PREVIEW || /github\.io$/.test(location.hostname) || location.protocol === 'file:';
+  $$('.cform').forEach(f => {
+    const msg = $('.form-msg', f), btn = $('button[type=submit]', f);
+    const say = (t, ok) => { msg.textContent = t; msg.className = 'form-msg ' + (ok ? 'ok' : 'err'); };
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const d = new FormData(f);
+      if (!d.get('your-name').trim() || !/^\S+@\S+\.\S+$/.test(d.get('your-email')) || !d.get('your-message').trim()) {
+        say('Rellena tu nombre, un email válido y el mensaje.', false); return;
+      }
+      if (NO_SERVER) { say('Esta es una vista previa: el formulario enviará los mensajes cuando la web esté en el dominio.', false); return; }
+      btn.disabled = true;
+      try {
+        const r = await fetch('contacto.php', { method: 'POST', body: d });
+        const j = await r.json();
+        if (!j.ok) throw 0;
+        say('Mensaje enviado. Te responderemos lo antes posible.', true);
+        f.reset();
+        if (f.dataset.order) { store.set('ecb-cart', []); renderBadge(false); renderCart(); delete f.dataset.order; }
+      } catch (_) {
+        say('No se ha podido enviar. Inténtalo de nuevo o llama al +34 627030073.', false);
+      }
+      btn.disabled = false;
+    });
+  });
+  /* pedido del carrito: se rellena en el mensaje del formulario de contacto */
+  const fillOrder = () => {
+    let order; try { order = sessionStorage.getItem('ecb-order'); } catch (_) {}
+    if (!order) return;
+    const f = $('[data-route="contacto"] .cform') || (document.body.dataset.nav === 'contacto' && $('.cform'));
+    if (!f || f.closest('[hidden]')) return;
+    const ta = $('textarea', f); ta.value = order; f.dataset.order = '1';
+    try { sessionStorage.removeItem('ecb-order'); } catch (_) {}
+  };
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-checkout]'); if (!a) return;
+    const c = getCart(); if (!c.length) return;
+    let total = 0;
+    const lines = c.map(i => { const p = PRODUCTS[i.id]; total += p.price * i.qty; return `- ${p.name} x ${i.qty} (${eur(p.price * i.qty)})`; });
+    try { sessionStorage.setItem('ecb-order', `Hola, quiero inscribirme en:\n${lines.join('\n')}\nTotal: ${eur(total)}`); } catch (_) {}
+    if (PREVIEW) setTimeout(fillOrder, 50);
+  });
 
   /* ---------- modales: vídeo, YouTube, imágenes ---------- */
   const modal = $('#modal'), mbody = $('#modalBody');
@@ -161,7 +202,7 @@
         <td><strong>${eur(sub)}</strong></td><td><button class="rm" data-rm="${i.id}" aria-label="Eliminar">×</button></td></tr>`;
     }).join('');
     root.innerHTML = `<div class="table-wrap"><table class="cart-table"><thead><tr><th>Producto</th><th>Precio</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-      <div class="cart-total"><span>Total</span><strong>${eur(total)}</strong><a class="btn amber" href="${link('contacto')}">Finalizar compra <span class="arr">${ARROW}</span></a></div>`;
+      <div class="cart-total"><span>Total</span><strong>${eur(total)}</strong><a class="btn amber" data-checkout href="${link('contacto')}">Finalizar compra <span class="arr">${ARROW}</span></a></div>`;
     $$('[data-rm]', root).forEach(b => b.onclick = () => saveCart(getCart().filter(i => i.id !== b.dataset.rm)));
     $$('.qty', root).forEach(q => {
       const upd = v => { const c2 = getCart(); const it = c2.find(i => i.id === q.dataset.id); it.qty = Math.max(1, v); saveCart(c2); };
@@ -169,7 +210,7 @@
       $('input', q).onchange = e => upd(+e.target.value || 1);
     });
   }
-  renderBadge(false); renderCart();
+  renderBadge(false); renderCart(); fillOrder();
 
   /* ---------- red celular en las cabeceras ---------- */
   $$('canvas.cells').forEach(cv => {
